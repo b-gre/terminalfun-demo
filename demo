@@ -1,0 +1,49 @@
+#!/usr/bin/php
+<?php
+
+set_error_handler(static function ($severity, $message, $file, $line) {
+    if (error_reporting() & $severity) {
+        throw new ErrorException($message, 0, $severity, $file, $line);
+    }
+});
+
+require_once  __DIR__ . '/vendor/autoload.php';
+
+BGre\TerminalFun\Stty::saveState();
+
+register_shutdown_function([BGre\TerminalFun\Stty::class, 'restoreState']);
+
+pcntl_async_signals(true);
+
+pcntl_signal(SIGINT, function () {
+    pcntl_signal(SIGINT, SIG_DFL);
+    throw new App\Exceptions\SigintException("Interrupted");
+});
+
+$app = new Symfony\Component\Console\Application('Console Test App');
+
+$app->addCommands([
+    new App\Commands\ColorsGradient(),
+    new App\Commands\ColorsList(),
+    new App\Commands\Dump(),
+    new App\Commands\Keys(),
+    new App\Commands\MenuData(),
+    new App\Commands\MenuFiles(),
+    new App\Commands\MenuSubmenu(),
+    new App\Commands\Positioning(),
+    new App\Commands\Styles(),
+    // one-shot development helper commands. uncomment when needed
+    // new App\Commands\MakeTerminfoFunctionsTrait(),
+    // new App\Commands\MakeTerminfoStringFunctionArgs(),
+]);
+
+$app->setCatchExceptions(false);
+
+try {
+    $app->run();
+} catch (App\Exceptions\SigintException) {
+} catch (\Throwable $e) {
+    $app->renderThrowable($e, new Symfony\Component\Console\Output\ConsoleOutput(
+        Symfony\Component\Console\Output\OutputInterface::VERBOSITY_VERBOSE
+    ));
+}
